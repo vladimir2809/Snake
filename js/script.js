@@ -50,12 +50,19 @@ var flagNewTail=false;// флаг того что нужно создать ко
 var gameOver=false;// куонец игры
 var quantityWall=700;//// количество стен
 var quantityFood=125;// количество еды на карте
-var leftFood=10;// количество еды, которое нужно сьесть
-var live=13;// жизни
+var leftFood=2;// количество еды, которое нужно сьесть
+var live=3;// жизни
 var level=1;// уровень
+var maxLevel=10;
+arrLevelWall=[100,120,120,120,120,320,480,200,200,1000];
+arrLevelFood=[25,30,30,50,60,10,25,10,5,5];
+arrLevelLeftFood=[10,12,15,25,30,5,8,10,5,8];
+levelWidth=[640,800,800,1000,1000,640,640,1200,1600,1200];
+levelHeight=[640,800,800,1000,1000,640,640,1200,1600,1200];
 var countWall=0;
 var countTail=0;
 function preload(){
+    setLevelOption(level);
     game.world.setBounds(0,0,mapWidth,mapHeight);
     game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
     game.scale.pageAlignHorizontally= true;
@@ -162,59 +169,78 @@ function update(){
             changeDirection=false;
             
             if (countSpeed<3)countSpeed+=0.002;
-        }
+        } 
+        game.physics.arcade.collide(header,arrWall,function (){
+            // restartContinue();
+           
+                 flagShakeCamera=true;
+
+                 console.log(countWall+"collis wall");
+                 for (var i=0;i<arrWall.children.length;i++)
+                 {
+                   // console.log(i+""+'x='+arrWall.children[i].x+"y="+
+                  //           arrWall.children[i].y); 
+                 }
+                 countWall++;
+            
+         });
+         // столкновение с хвостом
+        game.physics.arcade.collide(header,arrTail,function (){
+            for (var i=1; i<arrTail.children.length;i++)
+            {
+                if ((header.x+size>arrTail.children[i].x &&
+                     header.x<arrTail.children[i].x+size &&
+                     header.y+size>arrTail.children[i].y &&
+                     header.y<arrTail.children[i].y+size))
+                {
+                //    restartContinue();
+                   if (flagShakeCamera==false)
+                   {
+                        flagShakeCamera=true;
+                        console.log(countTail+"collis tail");
+                        countTail++;
+                        break;
+                    }
+                }
+            }
+        });
     }
 
-    game.physics.arcade.collide(header,arrWall,function (){
-               // restartContinue();
-               if (flagShakeCamera==false)
-               {
-                    flagShakeCamera=true;
-
-                    console.log(countWall+"collis wall");
-                    for (var i=0;i<arrWall.children.length;i++)
-                    {
-                       console.log(i+""+'x='+arrWall.children[i].x+"y="+
-                                arrWall.children[i].y); 
-                    }
-                    countWall++;
-               }
-            });
-            // столкновение с хвостом
-    game.physics.arcade.collide(header,arrTail,function (){
-        for (var i=1; i<arrTail.children.length;i++)
-        {
-            if ((header.x+size>arrTail.children[i].x &&
-                 header.x<arrTail.children[i].x+size &&
-                 header.y+size>arrTail.children[i].y &&
-                 header.y<arrTail.children[i].y+size))
-            {
-            //    restartContinue();
-               flagShakeCamera=true;
-               console.log(countTail+"collis tail");
-               countTail++;
-                break;
-            }
-        }      
-
-    });
+   
+            
     // столкновение с едой
-    game.physics.arcade.collide(header,arrFood,function(header,food)  {    
-             arrFood.remove(food);// уничтожить еду
-             leftFood--;// остолось сьесть меньше еды
-             countSpeed=1;
-             // если сьели столько сколько надо 
-             console.log(leftFood);
-             if (leftFood<=0){
-                flagLevelComplete=true;
-         //        flagShakeCamera=false;
-                // newLevel();// перейти на новый уровень
+    game.physics.arcade.collide(header,arrFood,function(header,food)  {
+           
+            arrFood.remove(food);// уничтожить еду
+            leftFood--;// остолось сьесть меньше еды
+            countSpeed=1;
+            // если сьели столько сколько надо 
+            console.log(leftFood);
+            if (leftFood<=0)
+            {
+               if (level>=maxLevel)
+               {
+                   gameOver=true;
+                   endGameText.x=game.camera.x+160;
+                   endGameText.y=game.camera.y+120;
+                   endGameText.setText("YOU WIN!!!");
 
-             }else
-             {
-                 flagNewTail=true;   // флаг соззадания нового хвостика змейки
-             }
-             
+
+
+               }
+               else
+               {
+                   flagLevelComplete=true;
+               }       
+        //        flagShakeCamera=false;
+               // newLevel();// перейти на новый уровень
+
+            }
+            else
+            {
+                flagNewTail=true;   // флаг соззадания нового хвостика змейки
+            }
+
           });
     gestMouse=gestureMouse();
     if (changeDirection==false)// если флаг измение движения ложь
@@ -271,8 +297,8 @@ function update(){
     game.camera.scale.y= zoomAmount;
     if (flagShakeCamera==true)
     {
-        game.camera.focusOnXY(header.x+size/2+randomInteger(2,20),
-                              header.y+size/2+randomInteger(2,20));
+        shakeCamera();
+        
     }
     else
     {
@@ -310,6 +336,38 @@ function update(){
    
      
 }
+function shakeCamera()
+{
+        if(header.x<480/2&&header.y<320/2)
+        {
+            game.camera.focusOnXY(480/2-10+randomInteger(0,20),
+                                  320/2-10+randomInteger(0,20));
+            console.log ('111');
+        }
+        else if(header.x<480/2&&header.y>mapHeight-320/2)
+        {
+            game.camera.focusOnXY(480/2-10+randomInteger(0,20),
+                                  mapHeight-320/2-10+randomInteger(0,20));
+            console.log ('222');
+        }
+        else if(header.x>mapWidth-480/2&&header.y<320/2)
+        {
+            game.camera.focusOnXY(mapWidth-480/2-10+randomInteger(0,20),
+                                  320/2-10+randomInteger(0,20));
+            console.log ('333');
+        }
+        else if(header.x>mapWidth-480/2&&header.y>mapHeight-320/2)
+        {
+            game.camera.focusOnXY(mapWidth-480/2-10+randomInteger(0,20),
+                                  mapHeight-320/2-10+randomInteger(0,20));
+            console.log ('444');
+        }   
+        else 
+        {
+            game.camera.focusOnXY(header.x+size/2-10+randomInteger(0,20),
+                             header.y+size/2-10+randomInteger(0,20));
+        }
+}
 // рестарт на уровне когда вроезались
 function restartContinue(unarLives=true){
     if (unarLives==true){
@@ -333,17 +391,34 @@ function restartContinue(unarLives=true){
         destroyCreateText();
     }
 }
+function setLevelOption(lvl)
+{
+    mapWidth=levelWidth[lvl-1];
+    mapHeight=levelHeight[lvl-1];
+    quantityWall= arrLevelWall[lvl-1];
+    //quantityWall
+    quantityFood=arrLevelFood[lvl-1];
+    leftFood=arrLevelLeftFood[lvl-1];
+}
 // новый уровень
 function newLevel(){
     //header.destroy();
+    level++;
+    setLevelOption(level);
+    game.world.setBounds(0,0,mapWidth,mapHeight);
     header.x=mapWidth/2-size;
     header.y=mapHeight/2-size;
     deleteWall();
     deleteFood();
     
-    level++;
     live++;
-    leftFood=2;
+    
+    //mapWidth=levelWidth[level-1];
+    //mapHeight=levelHeight[level-1];
+    
+    
+    //leftFood=2;
+    
     initWall();
     initFood(); 
     //header=game.add.sprite((mapWidth/2)-size,(mapHeight/2)-size,'header');
@@ -363,7 +438,7 @@ function destroyCreateText()
 function createText()
 {
     liveText=game.add.text(game.camera.x+5,game.camera.y+5,"Lives: 3",{font: "14px Arial",fill:"#44ff44"});
-    endGameText=game.add.text(game.camera.x+140,game.camera.y+120,"GAME OVER",{font: "34px Arial",fill:"#0095DD"});
+    endGameText=game.add.text(game.camera.x+140,game.camera.y+120,"GAME OVER",{font: "34px Arial",fill:"#ff5555"});
     levelCompleteText=game.add.text(game.camera.x+90,game.camera.y+120,"LEVEL COMPLETE ",{font: "34px Arial",fill:"#0095DD"});
     foodText=game.add.text(game.camera.x+200,game.camera.y+5,"Left to eat: "+leftFood,{font: "14px Arial",fill:"#0095DD"});
     levelText=game.add.text(game.camera.x+5,game.camera.y+5,"Level: "+level,{font: "14px Arial",fill:"#0095DD"});    
