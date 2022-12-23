@@ -56,11 +56,19 @@ var level=1;// уровень
 var maxLevel=10;
 arrLevelWall=[100,120,120,120,120,320,480,200,200,1000];
 arrLevelFood=[25,30,30,50,60,10,25,10,5,5];
-arrLevelLeftFood=[10,12,15,25,30,5,8,10,5,8];
+arrLevelLeftFood=[10,12,1,1,15,25,30,5,8,10,5,8];
 levelWidth=[640,800,800,1000,1000,640,640,1200,1600,1200];
 levelHeight=[640,800,800,1000,1000,640,640,1200,1600,1200];
 var countWall=0;
 var countTail=0;
+var startText = {
+    being:true,
+    count: 0,
+    maxCount:10,
+    valueTriger:0,
+    offsetX:[1,1,1,45],
+    valueText:['3','2','1','Вперед'],
+};
 function preload(){
     setLevelOption(level);
     game.world.setBounds(0,0,mapWidth,mapHeight);
@@ -83,8 +91,16 @@ function create(){
    // canvas.addEventListener('mousemove', mouseMove, false);
    // canvas.addEventListener('mousedown', mouseDown, false);
     game.physics.startSystem(Phaser.Physics.ARCADE); 
-    initWall();// создаем стены
-    initFood();// создаем еду
+    if (localStorage.getItem('dataLevel')==null || localStorage.getItem('dataLevel')==undefined)
+    {
+        initWall();// создаем стены
+        initFood();// создаем еду
+       // saveDataLevel();
+    }
+    else
+    {
+        readDatalevel();
+    }
     // создаем спрайт головы
     header=game.add.sprite((mapWidth/2)-size,Math.trunc(mapHeight/2)-size,'header');
     
@@ -99,6 +115,7 @@ function create(){
    // header.x=0;
    // header.y+=-speed;
     // создание текстов
+  //  saveDataLevel();
     createText();
 //    liveText=game.add.text(game.camera.x+5,game.camera.y+5,"Lives: 3",{font: "14px Arial",fill:"#44ff44"});
 //    endGameText=game.add.text(game.camera.x+140,game.camera.y+120,"GAME OVER",{font: "34px Arial",fill:"#0095DD"});
@@ -113,9 +130,9 @@ function update(){
     
    
  
-    if (gameOver==false)// если не конец игры
+    if (gameOver==false )// если не конец игры
     {
-        if (flagShakeCamera==false&&flagLevelComplete==false)
+        if (flagShakeCamera==false && flagLevelComplete==false && startText.being==false)
         {
             // движение по направлению
             if (direction==1)
@@ -151,7 +168,7 @@ function update(){
                 direction=newDirection;
                 addCheckPoint(header.x,header.y,direction);
             }   
-            if (flagNewTail==false){
+            if (flagNewTail==false){flagShakeCamera
                 servisTail();// перемешение хвоста 
             }
             else
@@ -193,6 +210,7 @@ function update(){
                      header.y+size>arrTail.children[i].y &&
                      header.y<arrTail.children[i].y+size))
                 {
+
                 //    restartContinue();
                    if (flagShakeCamera==false)
                    {
@@ -275,7 +293,7 @@ function update(){
         {
             countComplete=0;
             flagLevelComplete=false;
-            flagShakeCamera=false;
+            flagShakeCamera = false;
             newLevel();// перйти на новый уровень
            
         }
@@ -287,7 +305,10 @@ function update(){
         {
             countShake=0;
             flagShakeCamera=false;
+            
             restartContinue();
+            if (live > 0) saveDataLevel(); else removeDataLevel();
+            if (gameOver==false) startText.being = true;
         }
         
     }
@@ -307,14 +328,33 @@ function update(){
     // вывод текстов
     liveText.x=game.camera.x+5;
     liveText.y=game.camera.y+305;
-    liveText.setText('Lives: '+live);
-    foodText.x=game.camera.x+380;
+    liveText.setText('Жизни: '+live);
+    foodText.x=game.camera.x+340;
     foodText.y=game.camera.y+5;
-    foodText.setText('Left to eat: '+leftFood);
+    foodText.setText('Осталось съесть: '+leftFood);
     levelText.x=game.camera.x+5;
     levelText.y=game.camera.y+5;
-    levelText.setText('Level: '+level);
-   if (gameOver==false) //спрятать текст GAME OVER
+    levelText.setText('Уровень: '+level);
+    if (startText.being==true)
+    {
+        let k = startText.valueTriger;
+        startGameText.x = game.camera.x + game.camera.width / 2 - startText.offsetX[k];
+        startGameText.y = game.camera.y + game.camera.height / 2-100;
+        startGameText.setText(startText.valueText[k]);
+        startText.count++;
+        if (startText.count>startText.maxCount)
+        {
+            startText.count = 0;
+            startText.valueTriger++;
+            if (startText.valueTriger>=startText.valueText.length)
+            {
+                startText.being = false;
+                startText.valueTriger = 0;
+                startGameText.setText('');
+            }
+        }
+    }
+    if (gameOver==false) //спрятать текст GAME OVER
     {
         endGameText.x=game.camera.x-140;
         endGameText.y=game.camera.y-120;
@@ -425,10 +465,77 @@ function newLevel(){
     game.physics.enable(header,Phaser.Physics.ARCADE);// подключаем физику голове
     restartContinue(false);
     destroyCreateText();
+    if (level<maxLevel)
+    {   
+        saveDataLevel();
+    }
+    
+}
+function removeDataLevel()
+{
+    localStorage.removeItem('dataLevel');
+}
+function saveDataLevel()
+{
+    let dataWall = [];
+    let dataFood = [];
+    for (let i = 0; i < arrWall.length;i++)
+    {
+        dataWall.push({x: arrWall.children[i].x, y: arrWall.children[i].y});
+    }
+    for (let i = 0; i < arrFood.length;i++)
+    {
+        dataFood.push({x: arrFood.children[i].x, y: arrFood.children[i].y});
+    }
+    localStorage.setItem('dataLevel',JSON.stringify({arrWall:dataWall,arrFood:dataFood,live:live,level:level,leftFood:leftFood}));
+   // console.log(dataWall);
+   // console.log(dataFood);
+    //readDatalevel();
+}
+function readDatalevel()
+{
+    let data=localStorage.getItem('dataLevel');
+    data = JSON.parse(data);
+    console.log(data);
+    if (Array.isArray(data.arrWall)==true)
+    {
+        arrWall=game.add.group();
+        for (let i = 0; i < data.arrWall.length;i++)
+        {
+            newWall=game.add.sprite(data.arrWall[i].x,data.arrWall[i].y,'wall');
+            game.physics.enable(newWall, Phaser.Physics.ARCADE);
+            newWall.body.immovable=true;
+            arrWall.add(newWall);
+        }
+    }
+    if (Array.isArray(data.arrFood)==true)
+    {
+        arrFood=game.add.group();
+        for (let i = 0; i < data.arrFood.length;i++)
+        {
+            newFood=game.add.sprite(data.arrFood[i].x,data.arrFood[i].y,'food');
+            game.physics.enable(newFood,Phaser.Physics.ARCADE);
+            newFood.body.immovable=true;
+            arrFood.add(newFood);
+        }
+    }
+    if (typeof(data.live)=='number')
+    {
+        live = data.live;
+    }
+    if (typeof(data.level)=='number')
+    {
+        level = data.level;
+    }
+    if (typeof(data.leftFood)=='number')
+    {
+        leftFood = data.leftFood;
+    }
 }
 function destroyCreateText()
 {
     liveText.destroy();
+    startGameText.destroy();
     endGameText.destroy();
     levelCompleteText.destroy();
     foodText.destroy();
@@ -442,10 +549,12 @@ function createText()
     levelCompleteText=game.add.text(game.camera.x+90,game.camera.y+120,"LEVEL COMPLETE ",{font: "34px Arial",fill:"#0095DD"});
     foodText=game.add.text(game.camera.x+200,game.camera.y+5,"Left to eat: "+leftFood,{font: "14px Arial",fill:"#0095DD"});
     levelText=game.add.text(game.camera.x+5,game.camera.y+5,"Level: "+level,{font: "14px Arial",fill:"#0095DD"});    
+    startGameText=game.add.text(game.camera.x+game.camera.width/2,game.camera.y+game.camera.height/2-100,""+level,{font: "34px Arial",fill:"#0095DD"});    
 }
 // инициализация стен
-function initWall(){
-    	arrWall=game.add.group();			
+function initWall()
+{
+ 	arrWall=game.add.group();			
 	for (i=0;i<quantityWall;i++){
             // если стены не там где змейка
             do {
