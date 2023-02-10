@@ -51,9 +51,10 @@ var gameOver=false;// куонец игры
 var quantityWall=700;//// количество стен
 var quantityFood=125;// количество еды на карте
 var leftFood=2;// количество еды, которое нужно сьесть
-var live=3;// жизни
+var live = 0;// жизни
 var level=1;// уровень
-var maxLevel=10;
+var maxLevel = 10;
+let pause = false;
 arrLevelWall=[100,120,120,120,120,320,480,200,200,1000];
 arrLevelFood=[25,30,30,50,60,10,25,10,5,5];
 arrLevelLeftFood=[10,12,1,1,15,25,30,5,8,10,5,8];
@@ -61,15 +62,75 @@ levelWidth=[640,800,800,1000,1000,640,640,1200,1600,1200];
 levelHeight=[640,800,800,1000,1000,640,640,1200,1600,1200];
 var countWall=0;
 var countTail=0;
+windowSelect={   
+    being:false,
+    width:300,
+    height:200,
+    x:200,
+    y:300,
+    xHead: 145,
+    yHead: 180,
+    head:'Сыграть Заново?',
+    selectArr:[
+        {x:100+85,y:230,width:30,height:30,text:null,str:'Да'},
+        {x:200+85,y:230,width:40,height:30,text:null,str:"Нет"}],
+    textHead:null,
+    selectOption:0,
+}
+var ADV = {
+    timerOn:false,
+    time: 0,
+    timeOld:0,
+    maxTime: 180000,
+};
 var startText = {
     being:true,
     count: 0,
     maxCount:10,
     valueTriger:0,
     offsetX:[1,1,1,45],
-    valueText:['3','2','1','Вперед'],
+    valueText:['3','2','1','Вперед!'],
 };
+var ininYsdk = false;
+YaGames
+    .init()
+    .then(ysdk => {
+        console.log('Yandex SDK initialized');
+        window.ysdk = ysdk;
+        initYsdk = true;
+    });
+function adversting()
+{
+    var interval=setInterval(function () {
+        if (initYsdk==true)
+        {
+            ysdk.adv.showFullscreenAdv({
+                callbacks: {
+                    onClose: function () {
+                        pause = false;
+                        console.log('adversting close');
+
+                    },
+                    onOpen: function () {
+                        pause = true;
+                        console.log('adversting open');
+                    },
+                    onError: function () {
+                        pause = false;
+                        console.log('adversting Error');
+
+                    },
+                    onOffline: function () {
+                        pause = false;
+                    }
+                },
+            });
+            clearInterval(interval);
+        }
+    },100);
+}
 function preload(){
+
     setLevelOption(level);
     game.world.setBounds(0,0,mapWidth,mapHeight);
     game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
@@ -124,13 +185,18 @@ function create(){
 //    levelText=game.add.text(game.camera.x+5,game.camera.y+5,"Level: "+level,{font: "14px Arial",fill:"#0095DD"});
     
    // endGameText.alive=false;
+    adversting();
 }
 function update(){
     game.time.slowMotion = 3/countSpeed;// скорость игры 
     
    
- 
-    if (gameOver==false )// если не конец игры
+    if (ADV.timerOn==false)
+    {
+        ADV.timerOn = true;
+        ADV.time = ADV.timeOld = new Date().getTime();
+    }
+    if (gameOver==false && pause==false)// если не конец игры
     {
         if (flagShakeCamera==false && flagLevelComplete==false && startText.being==false)
         {
@@ -192,7 +258,7 @@ function update(){
            
                  flagShakeCamera=true;
 
-                 console.log(countWall+"collis wall");
+              // console.log(countWall+"collis wall");
                  for (var i=0;i<arrWall.children.length;i++)
                  {
                    // console.log(i+""+'x='+arrWall.children[i].x+"y="+
@@ -239,9 +305,9 @@ function update(){
                if (level>=maxLevel)
                {
                    gameOver=true;
-                   endGameText.x=game.camera.x+160;
+                   endGameText.x=game.camera.x+125;
                    endGameText.y=game.camera.y+120;
-                   endGameText.setText("YOU WIN!!!");
+                   endGameText.setText("Вы победили!!!");
 
 
 
@@ -304,10 +370,41 @@ function update(){
         if (countShake>15) 
         {
             countShake=0;
+
+      
+
             flagShakeCamera=false;
             
             restartContinue();
-            if (live > 0) saveDataLevel(); else removeDataLevel();
+
+            if (ADV.timerOn==false)
+            {
+                ADV.timerOn = true;
+                ADV.time = ADV.timeOld = new Date().getTime();
+            }
+            if (ADV.timerOn==true)
+            {
+                ADV.time = new Date().getTime();
+                console.log(ADV.time - ADV.timeOld);
+            }
+            if (ADV.time > ADV.timeOld + ADV.maxTime)
+            {
+                ADV.timeOld = new Date().getTime();
+                if (live > 0) 
+                {
+                    adversting();
+                }
+            }
+
+            if (live > 0)
+            {
+                saveDataLevel();
+            }
+            else
+            {
+                windowSelect.being = true;
+                removeDataLevel();
+            }
             if (gameOver==false) startText.being = true;
         }
         
@@ -335,6 +432,37 @@ function update(){
     levelText.x=game.camera.x+5;
     levelText.y=game.camera.y+5;
     levelText.setText('Уровень: '+level);
+    if (windowSelect.being==true)
+    {
+        windowSelect.textHead.x = game.camera.x + windowSelect.xHead;
+        windowSelect.textHead.y = game.camera.y + windowSelect.yHead;
+        for (let i = 0; i < windowSelect.selectArr.length;i++)
+        {
+            windowSelect.selectArr[i].text.x = game.camera.x + windowSelect.selectArr[i].x;
+            windowSelect.selectArr[i].text.y = game.camera.y + windowSelect.selectArr[i].y;
+            if (windowSelect.selectOption==i)
+            {
+                windowSelect.selectArr[i].text.fill = "#FF0000";
+            }
+            else
+            {
+                windowSelect.selectArr[i].text.fill = "#0095DD";
+            }
+          //  windowSelect.selectArr[i].text.destroy();
+        }
+
+    }
+    else
+    {
+        windowSelect.textHead.x = game.camera.x -100;
+        windowSelect.textHead.y = game.camera.y -100;
+        for (let i = 0; i < windowSelect.selectArr.length;i++)
+        {
+            windowSelect.selectArr[i].text.x = game.camera.x - 100;
+            windowSelect.selectArr[i].text.y = game.camera.y - 100;
+          //  windowSelect.selectArr[i].text.destroy();
+        }
+    }
     if (startText.being==true)
     {
         let k = startText.valueTriger;
@@ -363,7 +491,7 @@ function update(){
         // console.log("y= "+(header.y));
      //    console.log(countSpeed);
     }
-    if (flagLevelComplete==true) //спрятать текст GAME OVER
+    if (flagLevelComplete==true) 
     {
        levelCompleteText.x=game.camera.x+100;
        levelCompleteText.y=game.camera.y+120;
@@ -416,7 +544,7 @@ function restartContinue(unarLives=true){
     countSpeed=1;
     if (live<=0)
     {
-        endGameText.x=game.camera.x+140;
+        endGameText.x=game.camera.x+120;
         endGameText.y=game.camera.y+120;
         gameOver=true;
     }
@@ -540,16 +668,29 @@ function destroyCreateText()
     levelCompleteText.destroy();
     foodText.destroy();
     levelText.destroy();
+    windowSelect.textHead.destroy();
+    for (let i = 0; i < windowSelect.selectArr.length;i++)
+    {
+        windowSelect.selectArr[i].text.destroy();
+    }
     createText();
 }
 function createText()
 {
     liveText=game.add.text(game.camera.x+5,game.camera.y+5,"Lives: 3",{font: "14px Arial",fill:"#44ff44"});
-    endGameText=game.add.text(game.camera.x+140,game.camera.y+120,"GAME OVER",{font: "34px Arial",fill:"#ff5555"});
-    levelCompleteText=game.add.text(game.camera.x+90,game.camera.y+120,"LEVEL COMPLETE ",{font: "34px Arial",fill:"#0095DD"});
+    endGameText=game.add.text(game.camera.x+120,game.camera.y+120,"Вы проиграли!",{font: "34px Arial",fill:"#ff5555"});
+    levelCompleteText=game.add.text(game.camera.x+90,game.camera.y+120,"Уровень пройден ",{font: "34px Arial",fill:"#0095DD"});
     foodText=game.add.text(game.camera.x+200,game.camera.y+5,"Left to eat: "+leftFood,{font: "14px Arial",fill:"#0095DD"});
     levelText=game.add.text(game.camera.x+5,game.camera.y+5,"Level: "+level,{font: "14px Arial",fill:"#0095DD"});    
     startGameText=game.add.text(game.camera.x+game.camera.width/2,game.camera.y+game.camera.height/2-100,""+level,{font: "34px Arial",fill:"#0095DD"});    
+
+    windowSelect.textHead = game.add.text(game.camera.x + windowSelect.xHead, game.camera.y + windowSelect.yHead,windowSelect.head,{font: "24px Arial",fill:"#0095DD"});
+    for (let i = 0; i < windowSelect.selectArr.length;i++)
+    {
+        windowSelect.selectArr[i].text = game.add.text(game.camera.x + windowSelect.selectArr[i].x,
+            game.camera.y + + windowSelect.selectArr[i].y,
+            windowSelect.selectArr[i].str,{font: "14px Arial",fill:"#0095DD"});
+    }
 }
 // инициализация стен
 function initWall()
